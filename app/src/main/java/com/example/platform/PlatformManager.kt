@@ -32,15 +32,16 @@ class PlatformManager(
     private val _platformStatuses = MutableStateFlow<Map<PlatformType, PlatformStatus>>(
         PlatformType.entries.associateWith { platform ->
             val adapter = adapters[platform]
+            val config = adapter?.getConfig()
             PlatformStatus(
                 platform = platform,
-                isEnabled = true,
+                isEnabled = config?.isLiveSupported == true,
                 // No request has been made yet.  Never present fabricated health
                 // information as a successful platform connection.
                 isOnline = false,
                 responseTimeMs = 0,
                 lastSuccessScanAt = 0,
-                limitationsNote = if (adapter == null) "尚未支援" else "尚未測試"
+                limitationsNote = config?.statusNote ?: "尚未支援"
             )
         }
     )
@@ -53,7 +54,7 @@ class PlatformManager(
         targetPlatforms: List<PlatformType> = PlatformType.entries
     ): List<ProductItem> = coroutineScope {
         val activePlatforms = targetPlatforms.filter { platform ->
-            _platformStatuses.value[platform]?.isEnabled == true
+            _platformStatuses.value[platform]?.isEnabled == true && adapters[platform]?.getConfig()?.isLiveSupported == true
         }
 
         val deferredResults = activePlatforms.map { platform ->

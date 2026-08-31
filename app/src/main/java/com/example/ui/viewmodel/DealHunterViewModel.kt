@@ -202,7 +202,7 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
                     searchKeyword = "",
                     mustIncludeWords = emptyList(),
                     excludeKeywords = listOf("耳罩", "保護套", "線材", "空盒"),
-                    enabledPlatforms = PlatformType.entries,
+                    enabledPlatforms = listOf(PlatformType.SHOPEE, PlatformType.MOMO, PlatformType.PCHOME, PlatformType.COUPANG, PlatformType.ETMALL, PlatformType.YAHOO_CENTER),
                     thresholdMode = PriceThresholdMode.PERCENTAGE,
                     maxFixedPrice = null,
                     discountThresholdPercent = 25.0,
@@ -230,9 +230,24 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
 
     fun saveEditingMonitor(rule: MonitorRule) {
         viewModelScope.launch {
-            repository.saveMonitor(rule)
+            val resolvedRule = when (val result = repository.resolveUrlRule(rule)) {
+                is com.example.platform.PlatformResult.Success -> result.data
+                is com.example.platform.PlatformResult.Error -> {
+                    showBannerMessage("無法解析商品頁：${result.message}")
+                    return@launch
+                }
+                is com.example.platform.PlatformResult.RateLimited -> {
+                    showBannerMessage("商品頁暫時被限流，請稍後再試")
+                    return@launch
+                }
+            }
+            val id = repository.saveMonitor(resolvedRule)
+            val savedRule = resolvedRule.copy(id = if (resolvedRule.id == 0L) id else resolvedRule.id)
             closeCreateEditSheet()
-            showBannerMessage("監控設定已儲存！")
+            _uiState.update { it.copy(scannerStatus = ScannerStatus(true, "正在首次掃描 [${savedRule.name}]…", 0.3f)) }
+            val anomalies = repository.executeScanForMonitor(savedRule, _uiState.value.universalDictionary)
+            _uiState.update { it.copy(scannerStatus = ScannerStatus(false, "首次掃描完成", 1f, "更新 ${anomalies.size} 筆異常價格")) }
+            showBannerMessage("已儲存並完成首次掃描")
         }
     }
 

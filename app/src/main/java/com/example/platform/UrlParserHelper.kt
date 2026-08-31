@@ -10,7 +10,8 @@ data class ParsedUrlInfo(
     val suggestedName: String,
     val suggestedKeyword: String,
     val cleanUrl: String,
-    val isValidUrl: Boolean
+    val isValidUrl: Boolean,
+    val productId: String? = null
 )
 
 object UrlParserHelper {
@@ -73,29 +74,23 @@ object UrlParserHelper {
             }
         }
 
-        // If not found in query params, try path segment before id
-        if (extractedTitle.isBlank()) {
-            val pathPart = if (queryIndex != -1) decodedUrl.substring(0, queryIndex) else decodedUrl
-            val segments = pathPart.split("/").filter { it.isNotBlank() && !it.startsWith("http") && !it.contains("www.") }
-            val potentialSegment = segments.lastOrNull { seg ->
-                seg.length > 3 && !seg.all { it.isDigit() } && !seg.startsWith("i.")
-            }
-            if (potentialSegment != null) {
-                extractedTitle = potentialSegment.replace("-", " ").replace("_", " ").take(40)
-            }
-        }
-
-        // A product URL alone does not prove a product name or price.  The resolver
-        // must fetch the detail page; avoid manufacturing a title/keyword here.
+        // A URL path often contains only an SKU (for example PChome's DSAJBU-...)
+        // and is never a product title. The resolver fetches the real title later.
         val finalName = extractedTitle
         val finalKeyword = extractedTitle
+        val productId = when (platform) {
+            PlatformType.PCHOME -> Regex("/prod/([^/?#]+)", RegexOption.IGNORE_CASE).find(trimmed)?.groupValues?.getOrNull(1)
+            PlatformType.MOMO -> Regex("[?&]i_code=([^&#]+)", RegexOption.IGNORE_CASE).find(trimmed)?.groupValues?.getOrNull(1)
+            else -> null
+        }
 
         return ParsedUrlInfo(
             platform = platform,
             suggestedName = finalName,
             suggestedKeyword = finalKeyword,
             cleanUrl = trimmed,
-            isValidUrl = platform != null
+            isValidUrl = platform != null,
+            productId = productId
         )
     }
 }

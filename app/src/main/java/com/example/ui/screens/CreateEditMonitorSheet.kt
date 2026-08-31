@@ -38,7 +38,12 @@ fun CreateEditMonitorSheet(
     var searchKeyword by remember { mutableStateOf(initialRule.searchKeyword) }
     var matchMode by remember { mutableStateOf(initialRule.matchMode) }
 
-    var mustIncludeList by remember { mutableStateOf(initialRule.mustIncludeWords) }
+    // 次要關鍵字可切換為全部符合（AND）或任一符合（OR）。舊資料的
+    // mustIncludeWords 視為 AND，anyIncludeWords 視為 OR，以保持相容。
+    var secondaryUseAnd by remember { mutableStateOf(initialRule.anyIncludeWords.isEmpty()) }
+    var mustIncludeList by remember {
+        mutableStateOf(if (initialRule.anyIncludeWords.isNotEmpty()) initialRule.anyIncludeWords else initialRule.mustIncludeWords)
+    }
     var newMustWord by remember { mutableStateOf("") }
 
     var excludeList by remember { mutableStateOf(initialRule.excludeKeywords) }
@@ -192,10 +197,10 @@ fun CreateEditMonitorSheet(
                                 targetUrl = newUrl
                                 val parsed = UrlParserHelper.parseProductUrl(newUrl)
                                 if (parsed.isValidUrl) {
-                                    if (name.isBlank() || name.startsWith("【")) {
+                                    if (parsed.suggestedName.isNotBlank() && (name.isBlank() || name.startsWith("【"))) {
                                         name = parsed.suggestedName
                                     }
-                                    if (searchKeyword.isBlank()) {
+                                    if (parsed.suggestedKeyword.isNotBlank() && searchKeyword.isBlank()) {
                                         searchKeyword = parsed.suggestedKeyword
                                     }
                                     // A pasted product URL is only the source; retain the
@@ -241,9 +246,9 @@ fun CreateEditMonitorSheet(
                                     )
                                 }
                                 Text(
-                                    text = "🟢 解析成功",
+                                    text = "儲存時讀取商品頁",
                                     fontSize = 10.5.sp,
-                                    color = AnomalyHistoricGreen,
+                                    color = SlateTextSecondary,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -296,15 +301,35 @@ fun CreateEditMonitorSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // ================= KEYWORD MODE SPECIFIC: MUST INCLUDE WORDS =================
-            if (trackMode == "KEYWORD") {
+            // 次要關鍵字適用於關鍵字與網址追蹤；網址商品頁成功解析後，也會用它們進行跨平台比對。
+            run {
                 Text(
-                    text = "必須包含關鍵字 (全部符合方可成案)",
+                    text = "次要關鍵字（可新增多個）",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = PrimaryBlue,
                     fontSize = 12.5.sp
                 )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "次要關鍵字關係",
+                    fontSize = 10.5.sp,
+                    color = SlateTextSecondary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = secondaryUseAnd,
+                        onClick = { secondaryUseAnd = true },
+                        label = { Text("AND：全部符合", fontSize = 10.5.sp) }
+                    )
+                    FilterChip(
+                        selected = !secondaryUseAnd,
+                        onClick = { secondaryUseAnd = false },
+                        label = { Text("OR：符合任一", fontSize = 10.5.sp) }
+                    )
+                }
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Row(
@@ -315,7 +340,7 @@ fun CreateEditMonitorSheet(
                     OutlinedTextField(
                         value = newMustWord,
                         onValueChange = { newMustWord = it },
-                        placeholder = { Text("新增必須包含詞 (如 Nova)", fontSize = 11.sp) },
+                        placeholder = { Text(if (secondaryUseAnd) "新增次要詞（全部符合）" else "新增次要詞（符合任一）", fontSize = 11.sp) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
@@ -641,7 +666,7 @@ fun CreateEditMonitorSheet(
 
             // Submit Button
             val isFormValid = if (trackMode == "URL") {
-                targetUrl.isNotBlank() && (name.isNotBlank() || searchKeyword.isNotBlank())
+                targetUrl.isNotBlank() && parsedUrlInfo?.isValidUrl == true
             } else {
                 searchKeyword.isNotBlank()
             }
@@ -652,14 +677,13 @@ fun CreateEditMonitorSheet(
                         searchKeyword.trim()
                     } else if (name.isNotBlank()) {
                         name.trim()
-                    } else {
-                        "網址追蹤商品"
-                    }
+                    } else ""
 
                     val finalRule = initialRule.copy(
                         name = if (name.isNotBlank()) name.trim() else resolvedSearchKeyword,
                         searchKeyword = resolvedSearchKeyword,
-                        mustIncludeWords = mustIncludeList,
+                        mustIncludeWords = if (secondaryUseAnd) mustIncludeList else emptyList(),
+                        anyIncludeWords = if (secondaryUseAnd) emptyList() else mustIncludeList,
                         excludeKeywords = excludeList,
                         enabledPlatforms = enabledPlatforms,
                         maxFixedPrice = fixedPriceText.toDoubleOrNull(),
