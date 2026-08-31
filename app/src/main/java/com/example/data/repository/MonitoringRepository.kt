@@ -5,6 +5,7 @@ import com.example.data.local.entity.*
 import com.example.engine.*
 import com.example.model.*
 import com.example.platform.PlatformManager
+import com.example.platform.PlatformResult
 import com.example.platform.UrlParserHelper
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +19,10 @@ class MonitoringRepository(
 ) {
     /** Removes only identifiers created by the old demo seeder, never real listings. */
     suspend fun removeLegacyDemoData() = withContext(Dispatchers.IO) {
-        val ids = listOf("shopee_npw_001", "coupang_990p_001", "pchome_rtx5070_glitch")
+        val ids = listOf(
+            "shopee_npw_001", "coupang_990p_001", "pchome_rtx5070_glitch",
+            "costco_airpods_001", "momo_xm5_001", "books_kindle_001"
+        )
         database.withTransaction {
             anomalyDao.deleteAnomaliesByProductIds(ids)
             historyDao.deleteHistoryByProductIds(ids)
@@ -80,6 +84,31 @@ class MonitoringRepository(
 
     suspend fun saveMonitor(rule: MonitorRule): Long = withContext(Dispatchers.IO) {
         monitorDao.insertRule(rule.toEntity())
+    }
+
+    /** Resolves a pasted URL before it is saved, so IDs never become monitor titles. */
+    suspend fun resolveUrlRule(rule: MonitorRule): PlatformResult<MonitorRule> = withContext(Dispatchers.IO) {
+        if (rule.trackMode != "URL") return@withContext PlatformResult.Success(rule, 0)
+        val parsed = UrlParserHelper.parseProductUrl(rule.targetUrl)
+        val platform = parsed.platform ?: return@withContext PlatformResult.Error("不支援的商品網址", false)
+        val productId = parsed.productId ?: return@withContext PlatformResult.Error("此網址尚未能擷取商品編號", false)
+        val adapter = platformManager.getAdapter(platform)
+            ?: return@withContext PlatformResult.Error("${platform.displayName} 尚未支援網址解析", false)
+        when (val result = adapter.getProductDetails(productId)) {
+            is PlatformResult.Success -> {
+                val isAutoFilled = rule.name.isBlank() || rule.name == parsed.suggestedName
+                val isAutoKeyword = rule.searchKeyword.isBlank() || rule.searchKeyword == parsed.suggestedKeyword
+                PlatformResult.Success(
+                    rule.copy(
+                        name = if (isAutoFilled) result.data.title else rule.name,
+                        searchKeyword = if (isAutoKeyword) result.data.title else rule.searchKeyword
+                    ),
+                    result.latencyMs
+                )
+            }
+            is PlatformResult.Error -> result
+            is PlatformResult.RateLimited -> result
+        }
     }
 
     suspend fun deleteMonitor(id: Long) = withContext(Dispatchers.IO) {

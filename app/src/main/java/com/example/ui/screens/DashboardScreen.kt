@@ -275,8 +275,9 @@ fun DashboardScreen(
                     ) {
                         PlatformType.entries.forEach { platform ->
                             val status = uiState.platformStatuses[platform]
-                            val isOnline = status?.isOnline != false
-                            val latency = status?.responseTimeMs ?: 120
+                            val isUnsupported = status?.limitationsNote?.contains("尚未") == true || status?.isEnabled == false
+                            val isOnline = status?.isOnline == true
+                            val latency = status?.responseTimeMs ?: 0
                             val isCurrentFiltered = uiState.selectedPlatformFilter == platform
 
                             Column(
@@ -303,7 +304,7 @@ fun DashboardScreen(
                                         modifier = Modifier
                                             .size(5.dp)
                                             .clip(CircleShape)
-                                            .background(if (isOnline) AnomalyHistoricGreen else AnomalyGlitchRed)
+                                            .background(if (isUnsupported) SlateTextMuted else if (isOnline) AnomalyHistoricGreen else AnomalyGlitchRed)
                                     )
                                     Text(
                                         text = platform.displayName.split(" ").first(),
@@ -314,7 +315,7 @@ fun DashboardScreen(
                                 }
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Text(
-                                    text = "${latency}ms",
+                                    text = if (isUnsupported) "未實作" else if (latency > 0) "${latency}ms" else "未測試",
                                     fontSize = 9.5.sp,
                                     color = if (isCurrentFiltered) PrimaryBlue else SlateTextSecondary,
                                     fontWeight = FontWeight.Medium

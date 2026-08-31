@@ -112,7 +112,13 @@ class PChomeAdapter(
     }
 
     override suspend fun getProductDetails(productId: String): PlatformResult<ProductItem> {
-        return PlatformResult.Error("PChome 商品詳細頁解析尚未實作；請使用 searchProducts 的真實商品資料")
+        return when (val result = searchProducts(productId)) {
+            is PlatformResult.Success -> result.data.firstOrNull { it.originalPlatformId.equals(productId, true) }
+                ?.let { PlatformResult.Success(it, result.latencyMs) }
+                ?: PlatformResult.Error("PChome 找不到商品編號 $productId", false, 404)
+            is PlatformResult.Error -> result
+            is PlatformResult.RateLimited -> result
+        }
     }
 
     private fun normalizeTitle(value: String): String = value
