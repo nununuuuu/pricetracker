@@ -17,16 +17,16 @@ class PlatformManager(
         PlatformType.PCHOME to PChomeAdapter(),
         PlatformType.COUPANG to CoupangAdapter(),
         PlatformType.ETMALL to EtmallAdapter(),
-        PlatformType.RAKUTEN to RakutenAdapter(),
+        PlatformType.RAKUTEN to UnsupportedPlatformAdapter(PlatformType.RAKUTEN),
         PlatformType.YAHOO_CENTER to YahooCenterAdapter(),
-        PlatformType.YAHOO_AUCTION to YahooAuctionAdapter(),
-        PlatformType.COSTCO to CostcoAdapter(),
-        PlatformType.PXGO to PxgoAdapter(),
-        PlatformType.CARREFOUR to CarrefourAdapter(),
-        PlatformType.BOOKS to BooksAdapter(),
-        PlatformType.RUTEN to RutenAdapter(),
-        PlatformType.BUY123 to Buy123Adapter(),
-        PlatformType.PINECONE to PineconeAdapter()
+        PlatformType.YAHOO_AUCTION to UnsupportedPlatformAdapter(PlatformType.YAHOO_AUCTION),
+        PlatformType.COSTCO to UnsupportedPlatformAdapter(PlatformType.COSTCO),
+        PlatformType.PXGO to UnsupportedPlatformAdapter(PlatformType.PXGO),
+        PlatformType.CARREFOUR to UnsupportedPlatformAdapter(PlatformType.CARREFOUR, "實驗性平台，尚未完成真實資料串接"),
+        PlatformType.BOOKS to UnsupportedPlatformAdapter(PlatformType.BOOKS),
+        PlatformType.RUTEN to UnsupportedPlatformAdapter(PlatformType.RUTEN),
+        PlatformType.BUY123 to UnsupportedPlatformAdapter(PlatformType.BUY123),
+        PlatformType.PINECONE to UnsupportedPlatformAdapter(PlatformType.PINECONE)
     )
 ) {
     private val _platformStatuses = MutableStateFlow<Map<PlatformType, PlatformStatus>>(
@@ -35,10 +35,12 @@ class PlatformManager(
             PlatformStatus(
                 platform = platform,
                 isEnabled = true,
-                isOnline = true,
-                responseTimeMs = 120,
-                lastSuccessScanAt = System.currentTimeMillis(),
-                limitationsNote = adapter?.getConfig()?.statusNote ?: "準備就緒"
+                // No request has been made yet.  Never present fabricated health
+                // information as a successful platform connection.
+                isOnline = false,
+                responseTimeMs = 0,
+                lastSuccessScanAt = 0,
+                limitationsNote = if (adapter == null) "尚未支援" else "尚未測試"
             )
         }
     )

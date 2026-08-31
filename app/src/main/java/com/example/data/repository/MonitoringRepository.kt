@@ -6,6 +6,7 @@ import com.example.engine.*
 import com.example.model.*
 import com.example.platform.PlatformManager
 import com.example.platform.UrlParserHelper
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -15,6 +16,15 @@ class MonitoringRepository(
     private val database: AppDatabase,
     val platformManager: PlatformManager = PlatformManager()
 ) {
+    /** Removes only identifiers created by the old demo seeder, never real listings. */
+    suspend fun removeLegacyDemoData() = withContext(Dispatchers.IO) {
+        val ids = listOf("shopee_npw_001", "coupang_990p_001", "pchome_rtx5070_glitch")
+        database.withTransaction {
+            anomalyDao.deleteAnomaliesByProductIds(ids)
+            historyDao.deleteHistoryByProductIds(ids)
+            productDao.deleteProductsByIds(ids)
+        }
+    }
     private val monitorDao = database.monitorRuleDao()
     private val productDao = database.productDao()
     private val historyDao = database.priceHistoryDao()
@@ -103,12 +113,12 @@ class MonitoringRepository(
      * Prioritizes actual price anomaly detection (below historical low or below market reference).
      */
     suspend fun executeScanForMonitor(rule: MonitorRule, universalExclusions: List<String> = emptyList()): List<AnomalyReport> = withContext(Dispatchers.IO) {
-        val platformsToQuery = if (rule.trackMode == "URL" && rule.targetUrl.isNotBlank()) {
-            val parsed = UrlParserHelper.parseProductUrl(rule.targetUrl)
-            (listOf(parsed.platform) + rule.enabledPlatforms).distinct()
-        } else {
-            rule.enabledPlatforms
+        // The URL tells us the source platform, not the set of stores to compare.
+        // Invalid/unknown URLs must not fall back to Shopee or create a monitor scan.
+        if (rule.trackMode == "URL" && rule.targetUrl.isNotBlank() && !UrlParserHelper.parseProductUrl(rule.targetUrl).isValidUrl) {
+            return@withContext emptyList()
         }
+        val platformsToQuery = rule.enabledPlatforms
         val rawProducts = platformManager.searchAcrossPlatforms(rule.searchKeyword.ifBlank { rule.name }, platformsToQuery)
         val discoveredAnomalies = mutableListOf<AnomalyReport>()
         var foundCount = 0
@@ -119,6 +129,7 @@ class MonitoringRepository(
             val matchRes = ProductMatcher.matchProduct(
                 productTitle = rawProd.title,
                 searchKeyword = rule.searchKeyword,
+                matchMode = rule.matchMode,
                 mustIncludeWords = rule.mustIncludeWords,
                 anyIncludeWords = rule.anyIncludeWords,
                 excludeKeywords = rule.excludeKeywords

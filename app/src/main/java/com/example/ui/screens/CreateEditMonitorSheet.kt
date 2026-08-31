@@ -198,7 +198,8 @@ fun CreateEditMonitorSheet(
                                     if (searchKeyword.isBlank()) {
                                         searchKeyword = parsed.suggestedKeyword
                                     }
-                                    enabledPlatforms = listOf(parsed.platform)
+                                    // A pasted product URL is only the source; retain the
+                                    // user's comparison-platform selection.
                                 }
                             },
                             label = { Text("商品網址 (URL)", fontSize = 11.sp) },
@@ -231,7 +232,7 @@ fun CreateEditMonitorSheet(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    PlatformBadge(platform = parsedUrlInfo.platform)
+                                    PlatformBadge(platform = requireNotNull(parsedUrlInfo.platform))
                                     Text(
                                         text = "已自動識別所屬平台",
                                         fontSize = 11.sp,

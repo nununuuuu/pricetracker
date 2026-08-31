@@ -2,13 +2,13 @@ package com.example.platform
 
 import com.example.model.PlatformType
 import com.example.model.ProductItem
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 class ShopeeAdapter(
     private val client: OkHttpClient = OkHttpClient.Builder()
@@ -28,16 +28,16 @@ class ShopeeAdapter(
 
     override suspend fun testConnection(): PlatformResult<Long> {
         val start = System.currentTimeMillis()
-        return try {
-            delay(120)
-            PlatformResult.Success(System.currentTimeMillis() - start, System.currentTimeMillis() - start)
-        } catch (e: Exception) {
-            PlatformResult.Error("蝦皮連線失敗: ${e.localizedMessage}")
+        return when (val result = searchProducts("手機", 1)) {
+            is PlatformResult.Success -> PlatformResult.Success(System.currentTimeMillis() - start, System.currentTimeMillis() - start)
+            is PlatformResult.Error -> result
+            is PlatformResult.RateLimited -> result
         }
     }
 
-    override suspend fun searchProducts(keyword: String, page: Int): PlatformResult<List<ProductItem>> {
+    override suspend fun searchProducts(keyword: String, page: Int): PlatformResult<List<ProductItem>> = withContext(Dispatchers.IO) {
         val startTime = System.currentTimeMillis()
+        if (keyword.isBlank()) return@withContext PlatformResult.Error("蝦皮搜尋關鍵字不可為空", false)
         try {
             val encodedQuery = URLEncoder.encode(keyword, "UTF-8")
             val url = "https://shopee.tw/api/v4/search/search_items?by=relevancy&keyword=$encodedQuery&limit=30&newest=${(page - 1) * 30}&order=desc&page_type=search&scenario=PAGE_GLOBAL_SEARCH&version=2"
@@ -49,32 +49,16 @@ class ShopeeAdapter(
                 .addHeader("X-Requested-With", "XMLHttpRequest")
                 .build()
 
-            // Attempt network call
-            val response = try {
-                client.newCall(request).execute()
-            } catch (e: Exception) {
-                null
+            client.newCall(request).execute().use { response ->
+                if (response.code == 429) return@withContext PlatformResult.RateLimited()
+                if (!response.isSuccessful) return@withContext PlatformResult.Error("蝦皮 HTTP ${response.code}", response.code >= 500, response.code)
+                val body = response.body?.string().orEmpty()
+                if (body.isBlank()) return@withContext PlatformResult.Error("蝦皮回傳空內容")
+                PlatformResult.Success(parseShopeeJson(body, keyword), System.currentTimeMillis() - startTime)
             }
-
-            if (response != null && response.isSuccessful) {
-                val bodyStr = response.body?.string()
-                if (!bodyStr.isNullOrEmpty()) {
-                    val parsed = parseShopeeJson(bodyStr, keyword)
-                    if (parsed.isNotEmpty()) {
-                        return PlatformResult.Success(parsed, System.currentTimeMillis() - startTime)
-                    }
-                }
-            }
-
-            // Fallback generation for Taiwanese market dataset
-            delay(150 + Random.nextLong(200))
-            val fallbackResults = generateMarketSampleProducts(keyword, PlatformType.SHOPEE)
-            return PlatformResult.Success(fallbackResults, System.currentTimeMillis() - startTime)
 
         } catch (e: Exception) {
-            val latency = System.currentTimeMillis() - startTime
-            val fallbackResults = generateMarketSampleProducts(keyword, PlatformType.SHOPEE)
-            return PlatformResult.Success(fallbackResults, latency)
+            PlatformResult.Error("蝦皮搜尋失敗: ${e.message ?: e.javaClass.simpleName}")
         }
     }
 
@@ -93,6 +77,7 @@ class ShopeeAdapter(
                 val imageHash = itemObj.optString("image", "")
                 val imageUrl = if (imageHash.isNotBlank()) "https://cf.shopee.tw/file/$imageHash" else ""
                 val productUrl = "https://shopee.tw/product/$shopId/$itemId"
+                if (itemId == "0" || shopId == "0" || name.isBlank() || priceRaw <= 0.0) continue
 
                 list.add(
                     ProductItem(
@@ -105,8 +90,8 @@ class ShopeeAdapter(
                         imageUrl = imageUrl,
                         sellerName = "蝦皮商城/優選賣家",
                         sellerRating = 4.8,
-                        currentPrice = if (priceRaw > 0) priceRaw else 1990.0,
-                        originalPrice = if (originalPriceRaw > 0) originalPriceRaw else priceRaw * 1.2,
+                currentPrice = priceRaw,
+                originalPrice = originalPriceRaw.takeIf { it >= priceRaw } ?: priceRaw,
                         offerPrice = priceRaw,
                         firstDiscoveredAt = System.currentTimeMillis(),
                         lastDiscoveredAt = System.currentTimeMillis()
@@ -120,21 +105,7 @@ class ShopeeAdapter(
     }
 
     override suspend fun getProductDetails(productId: String): PlatformResult<ProductItem> {
-        return PlatformResult.Success(
-            ProductItem(
-                id = productId,
-                platform = PlatformType.SHOPEE,
-                originalPlatformId = productId.removePrefix("shopee_"),
-                title = "商品詳細資訊",
-                normalizedTitle = "商品詳細資訊",
-                url = "https://shopee.tw",
-                imageUrl = "",
-                sellerName = "蝦皮優選賣家",
-                currentPrice = 3299.0,
-                originalPrice = 9490.0
-            ),
-            50
-        )
+        return PlatformResult.Error("蝦皮商品詳細頁解析尚未實作", false)
     }
 
     companion object {

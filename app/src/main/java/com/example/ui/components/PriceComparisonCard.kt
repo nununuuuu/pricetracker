@@ -281,16 +281,7 @@ fun PriceComparisonCard(
 
                     Button(
                         onClick = {
-                            val rawUrl = report.productUrl
-                            val targetUrl = if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
-                                if (rawUrl.contains("/item/npw_") || rawUrl.contains("/item/990p_") || rawUrl.contains("/item/rtx5070_") || rawUrl.contains("/products/882190") || rawUrl.contains("/product/12345/") || rawUrl.endsWith("/item/npw_001")) {
-                                    report.platform.getSearchUrl(report.productTitle)
-                                } else {
-                                    rawUrl
-                                }
-                            } else {
-                                report.platform.getSearchUrl(report.productTitle)
-                            }
+                            val targetUrl = report.productUrl.takeIf { it.isRealProductUrl() } ?: return@Button
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
                             try {
                                 context.startActivity(intent)
@@ -298,6 +289,7 @@ fun PriceComparisonCard(
                                 // Fallback
                             }
                         },
+                        enabled = report.productUrl.isRealProductUrl(),
                         modifier = Modifier
                             .weight(1.3f)
                             .height(30.dp),
@@ -324,4 +316,9 @@ fun PriceComparisonCard(
         }
     }
 }
+
+private fun String.isRealProductUrl(): Boolean =
+    (startsWith("https://") || startsWith("http://")) &&
+        !contains("/search", ignoreCase = true) &&
+        !contains("search?", ignoreCase = true)
 

@@ -27,9 +27,10 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
     val uiState: StateFlow<DealHunterUiState> = _uiState.asStateFlow()
 
     init {
-        // Initialize sample data if fresh database
+        // Remove the previous release's fabricated demo data. Live scans are the
+        // only source allowed to populate products and anomalies.
         viewModelScope.launch {
-            repository.seedInitialDataIfEmpty()
+            repository.removeLegacyDemoData()
         }
 
         // Observe monitors
