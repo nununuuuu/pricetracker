@@ -84,14 +84,14 @@ data class AnomalyReport(
 data class PlatformStatus(
     val platform: PlatformType,
     val isEnabled: Boolean = true,
-    val isOnline: Boolean = true,
-    val responseTimeMs: Long = 180,
-    val lastSuccessScanAt: Long = System.currentTimeMillis(),
+    val isOnline: Boolean = false,
+    val responseTimeMs: Long = 0,
+    val lastSuccessScanAt: Long = 0,
     val lastError: String? = null,
     val requestCount: Int = 0,
     val errorCount: Int = 0,
     val rateLimitRpm: Int = 60,
-    val limitationsNote: String = "正常連線"
+    val limitationsNote: String = "尚未測試"
 )
 
 data class NotificationLog(

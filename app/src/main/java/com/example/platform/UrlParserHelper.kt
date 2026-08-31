@@ -5,7 +5,8 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 data class ParsedUrlInfo(
-    val platform: PlatformType,
+    /** Source platform only; it must never silently become a comparison platform. */
+    val platform: PlatformType?,
     val suggestedName: String,
     val suggestedKeyword: String,
     val cleanUrl: String,
@@ -18,7 +19,7 @@ object UrlParserHelper {
         val trimmed = rawUrl.trim()
         if (trimmed.isBlank() || !trimmed.startsWith("http", ignoreCase = true)) {
             return ParsedUrlInfo(
-                platform = PlatformType.SHOPEE,
+                platform = null,
                 suggestedName = "",
                 suggestedKeyword = "",
                 cleanUrl = trimmed,
@@ -43,7 +44,7 @@ object UrlParserHelper {
             lower.contains("ruten.com.tw") -> PlatformType.RUTEN
             lower.contains("buy123.com.tw") -> PlatformType.BUY123
             lower.contains("pcone.com.tw") -> PlatformType.PINECONE
-            else -> PlatformType.SHOPEE
+            else -> null
         }
 
         val decodedUrl = try {
@@ -84,15 +85,17 @@ object UrlParserHelper {
             }
         }
 
-        val finalName = if (extractedTitle.isNotBlank()) extractedTitle else "【${platform.displayName.split(" ").first()}】網址追蹤商品"
-        val finalKeyword = if (extractedTitle.isNotBlank()) extractedTitle else platform.displayName.split(" ").first()
+        // A product URL alone does not prove a product name or price.  The resolver
+        // must fetch the detail page; avoid manufacturing a title/keyword here.
+        val finalName = extractedTitle
+        val finalKeyword = extractedTitle
 
         return ParsedUrlInfo(
             platform = platform,
             suggestedName = finalName,
             suggestedKeyword = finalKeyword,
             cleanUrl = trimmed,
-            isValidUrl = true
+            isValidUrl = platform != null
         )
     }
 }

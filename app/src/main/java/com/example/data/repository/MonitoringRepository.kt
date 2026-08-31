@@ -103,12 +103,12 @@ class MonitoringRepository(
      * Prioritizes actual price anomaly detection (below historical low or below market reference).
      */
     suspend fun executeScanForMonitor(rule: MonitorRule, universalExclusions: List<String> = emptyList()): List<AnomalyReport> = withContext(Dispatchers.IO) {
-        val platformsToQuery = if (rule.trackMode == "URL" && rule.targetUrl.isNotBlank()) {
-            val parsed = UrlParserHelper.parseProductUrl(rule.targetUrl)
-            (listOf(parsed.platform) + rule.enabledPlatforms).distinct()
-        } else {
-            rule.enabledPlatforms
+        // The URL tells us the source platform, not the set of stores to compare.
+        // Invalid/unknown URLs must not fall back to Shopee or create a monitor scan.
+        if (rule.trackMode == "URL" && rule.targetUrl.isNotBlank() && !UrlParserHelper.parseProductUrl(rule.targetUrl).isValidUrl) {
+            return@withContext emptyList()
         }
+        val platformsToQuery = rule.enabledPlatforms
         val rawProducts = platformManager.searchAcrossPlatforms(rule.searchKeyword.ifBlank { rule.name }, platformsToQuery)
         val discoveredAnomalies = mutableListOf<AnomalyReport>()
         var foundCount = 0
@@ -119,6 +119,7 @@ class MonitoringRepository(
             val matchRes = ProductMatcher.matchProduct(
                 productTitle = rawProd.title,
                 searchKeyword = rule.searchKeyword,
+                matchMode = rule.matchMode,
                 mustIncludeWords = rule.mustIncludeWords,
                 anyIncludeWords = rule.anyIncludeWords,
                 excludeKeywords = rule.excludeKeywords

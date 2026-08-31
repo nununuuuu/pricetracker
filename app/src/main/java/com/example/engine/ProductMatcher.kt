@@ -1,5 +1,7 @@
 package com.example.engine
 
+import com.example.model.MatchMode
+
 import java.util.Locale
 
 data class MatchResult(
@@ -33,6 +35,7 @@ object ProductMatcher {
     fun matchProduct(
         productTitle: String,
         searchKeyword: String,
+        matchMode: MatchMode = MatchMode.CONTAINS,
         mustIncludeWords: List<String>,
         anyIncludeWords: List<String>,
         excludeKeywords: List<String>
@@ -84,7 +87,21 @@ object ProductMatcher {
             }
         }
 
-        // 4. Calculate token overlap similarity and confidence
+        // 4. EXACT is deliberately strict after the same normalisation used for
+        // product titles; promotional text has already been removed above.
+        val normalizedKeyword = normalizeTitle(searchKeyword)
+        if (matchMode == MatchMode.EXACT) {
+            val exact = normalizedKeyword.isNotBlank() && normTitle == normalizedKeyword
+            return MatchResult(
+                isMatched = exact,
+                confidenceScore = if (exact) 0.98 else 0.0,
+                clusterId = if (exact) "cluster_${normalizedKeyword.replace(" ", "_")}" else "",
+                normalizedTitle = normTitle,
+                rejectionReason = if (exact) null else "完全符合模式：商品標題與關鍵字不同"
+            )
+        }
+
+        // 5. Calculate token overlap similarity and confidence
         val searchTokens = normalizeTitle(searchKeyword).split(" ").filter { it.length >= 2 }
         val titleTokens = normTitle.split(" ").filter { it.length >= 2 }.toSet()
 

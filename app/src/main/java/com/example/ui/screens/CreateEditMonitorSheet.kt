@@ -198,7 +198,8 @@ fun CreateEditMonitorSheet(
                                     if (searchKeyword.isBlank()) {
                                         searchKeyword = parsed.suggestedKeyword
                                     }
-                                    enabledPlatforms = listOf(parsed.platform)
+                                    // A pasted product URL is only the source; retain the
+                                    // user's comparison-platform selection.
                                 }
                             },
                             label = { Text("商品網址 (URL)", fontSize = 11.sp) },

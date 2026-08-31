@@ -35,10 +35,12 @@ class PlatformManager(
             PlatformStatus(
                 platform = platform,
                 isEnabled = true,
-                isOnline = true,
-                responseTimeMs = 120,
-                lastSuccessScanAt = System.currentTimeMillis(),
-                limitationsNote = adapter?.getConfig()?.statusNote ?: "準備就緒"
+                // No request has been made yet.  Never present fabricated health
+                // information as a successful platform connection.
+                isOnline = false,
+                responseTimeMs = 0,
+                lastSuccessScanAt = 0,
+                limitationsNote = if (adapter == null) "尚未支援" else "尚未測試"
             )
         }
     )
