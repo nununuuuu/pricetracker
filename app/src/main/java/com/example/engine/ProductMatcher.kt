@@ -22,15 +22,15 @@ object ProductMatcher {
         "保固", "一年保", "兩年保", "五年保", "含稅", "開發票"
     )
 
-    fun normalizeTitle(title: String): String {
-        var clean = title.lowercase(Locale.ROOT)
+    fun normalizeTitle(title: String, ignoreCase: Boolean = true): String {
+        var clean = if (ignoreCase) title.lowercase(Locale.ROOT) else title
         // Remove brackets and common promo text
         clean = clean.replace(Regex("【.*?】|\\[.*?\\]|\\(.*?\\)|（.*?）"), " ")
         STOPWORDS.forEach { word ->
             clean = clean.replace(word.lowercase(Locale.ROOT), " ")
         }
         // Replace special characters with spaces
-        clean = clean.replace(Regex("[^a-z0-9\\u4e00-\\u9fa5]"), " ")
+        clean = clean.replace(Regex("[^a-zA-Z0-9\\u4e00-\\u9fa5]"), " ")
         return clean.replace(Regex("\\s+"), " ").trim()
     }
 
@@ -40,14 +40,20 @@ object ProductMatcher {
         matchMode: MatchMode = MatchMode.CONTAINS,
         mustIncludeWords: List<String>,
         anyIncludeWords: List<String>,
-        excludeKeywords: List<String>
+        excludeKeywords: List<String>,
+        ignoreCase: Boolean = true,
+        ignoreWhitespace: Boolean = false
     ): MatchResult {
-        val lowerTitle = productTitle.lowercase(Locale.ROOT)
-        val normTitle = normalizeTitle(productTitle)
+        fun comparable(value: String): String {
+            val cased = if (ignoreCase) value.lowercase(Locale.ROOT) else value
+            return if (ignoreWhitespace) cased.replace(Regex("\\s+"), "") else cased
+        }
+        val lowerTitle = comparable(productTitle)
+        val normTitle = normalizeTitle(productTitle, ignoreCase).let { if (ignoreWhitespace) it.replace(" ", "") else it }
 
         // 1. Exclude keywords check
         excludeKeywords.forEach { excl ->
-            if (excl.isNotBlank() && lowerTitle.contains(excl.lowercase(Locale.ROOT).trim())) {
+            if (excl.isNotBlank() && lowerTitle.contains(comparable(excl.trim()))) {
                 return MatchResult(
                     isMatched = false,
                     confidenceScore = 0.0,
@@ -58,27 +64,24 @@ object ProductMatcher {
             }
         }
 
-        // 2. Apply the secondary rules in saved order. AND rules narrow the
-        // current candidate set; OR rules preserve it when absent and add the
-        // matching branch when present. Thus A + B(OR) + C(AND) accepts ABC or AC.
+        // 2. Ordered secondary rules form groups: groups are AND, terms inside
+        // each group are OR. [A AND, B OR, C AND] means (A OR B) AND C.
         val secondaryRules = SecondaryKeywordRules.decode(mustIncludeWords, anyIncludeWords)
-        val missingMustWords = secondaryRules
-            .filter { it.operator == SecondaryKeywordOperator.AND }
-            .map { it.keyword }
-            .filter { must -> !lowerTitle.contains(must.lowercase(Locale.ROOT).trim()) }
-        if (missingMustWords.isNotEmpty()) {
+        val unmatchedGroups = SecondaryKeywordRules.groups(secondaryRules)
+            .filter { group -> group.none { keyword -> lowerTitle.contains(comparable(keyword.trim())) } }
+        if (unmatchedGroups.isNotEmpty()) {
             return MatchResult(
                 isMatched = false,
                 confidenceScore = 0.0,
                 clusterId = "",
                 normalizedTitle = normTitle,
-                rejectionReason = "缺少必備關鍵字: [${missingMustWords.joinToString(", ")}]"
+                rejectionReason = "未符合關鍵字群組: [${unmatchedGroups.joinToString { it.joinToString(" OR ") }}]"
             )
         }
 
         // 3. EXACT is deliberately strict after the same normalisation used for
         // product titles; promotional text has already been removed above.
-        val normalizedKeyword = normalizeTitle(searchKeyword)
+        val normalizedKeyword = normalizeTitle(searchKeyword, ignoreCase).let { if (ignoreWhitespace) it.replace(" ", "") else it }
         if (matchMode == MatchMode.EXACT) {
             val exact = normalizedKeyword.isNotBlank() && normTitle == normalizedKeyword
             return MatchResult(
@@ -91,7 +94,7 @@ object ProductMatcher {
         }
 
         // 4. Calculate token overlap similarity and confidence
-        val searchTokens = normalizeTitle(searchKeyword).split(" ").filter { it.length >= 2 }
+        val searchTokens = normalizeTitle(searchKeyword, ignoreCase).let { if (ignoreWhitespace) it.replace(" ", "") else it }.split(" ").filter { it.length >= 2 }
         val titleTokens = normTitle.split(" ").filter { it.length >= 2 }.toSet()
 
         var matchedTokensCount = 0

@@ -44,6 +44,9 @@ fun CreateEditMonitorSheet(
     }
     var newMustWord by remember { mutableStateOf("") }
     var newMustOperator by remember { mutableStateOf(SecondaryKeywordOperator.AND) }
+    val savedMatchOptions = remember { SecondaryKeywordRules.matchOptions(initialRule.mustIncludeWords) }
+    var ignoreCase by remember { mutableStateOf(savedMatchOptions.ignoreCase) }
+    var ignoreWhitespace by remember { mutableStateOf(savedMatchOptions.ignoreWhitespace) }
 
     var excludeList by remember { mutableStateOf(initialRule.excludeKeywords) }
     var newExcludeWord by remember { mutableStateOf("") }
@@ -300,6 +303,15 @@ fun CreateEditMonitorSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = ignoreCase, onCheckedChange = { ignoreCase = it })
+                Text("無視大小寫", fontSize = 11.sp, color = SlateTextPrimary)
+                Spacer(modifier = Modifier.width(12.dp))
+                Checkbox(checked = ignoreWhitespace, onCheckedChange = { ignoreWhitespace = it })
+                Text("無視空格", fontSize = 11.sp, color = SlateTextPrimary)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
             // 次要關鍵字適用於關鍵字與網址追蹤；網址商品頁成功解析後，也會用它們進行跨平台比對。
             run {
                 Text(
@@ -312,7 +324,7 @@ fun CreateEditMonitorSheet(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "新一次要關鍵字的關係（每筆可獨立設定）",
+                    text = "群組之間為 AND；同一群組內為 OR",
                     fontSize = 10.5.sp,
                     color = SlateTextSecondary
                 )
@@ -321,12 +333,12 @@ fun CreateEditMonitorSheet(
                     FilterChip(
                         selected = newMustOperator == SecondaryKeywordOperator.AND,
                         onClick = { newMustOperator = SecondaryKeywordOperator.AND },
-                        label = { Text("AND：全部符合", fontSize = 10.5.sp) }
+                        label = { Text("AND：新增群組", fontSize = 10.5.sp) }
                     )
                     FilterChip(
                         selected = newMustOperator == SecondaryKeywordOperator.OR,
                         onClick = { newMustOperator = SecondaryKeywordOperator.OR },
-                        label = { Text("OR：符合任一", fontSize = 10.5.sp) }
+                        label = { Text("OR：加入上一群組", fontSize = 10.5.sp) }
                     )
                 }
                 Spacer(modifier = Modifier.height(6.dp))
@@ -351,7 +363,8 @@ fun CreateEditMonitorSheet(
                     Button(
                         onClick = {
                             if (newMustWord.isNotBlank() && secondaryRules.none { it.keyword == newMustWord.trim() }) {
-                                secondaryRules = secondaryRules + SecondaryKeywordRule(newMustWord.trim(), newMustOperator)
+                                val operator = if (secondaryRules.isEmpty()) SecondaryKeywordOperator.AND else newMustOperator
+                                secondaryRules = secondaryRules + SecondaryKeywordRule(newMustWord.trim(), operator)
                                 newMustWord = ""
                             }
                         },
@@ -681,7 +694,7 @@ fun CreateEditMonitorSheet(
                     val finalRule = initialRule.copy(
                         name = if (name.isNotBlank()) name.trim() else resolvedSearchKeyword,
                         searchKeyword = resolvedSearchKeyword,
-                        mustIncludeWords = SecondaryKeywordRules.encode(secondaryRules),
+                        mustIncludeWords = SecondaryKeywordRules.encode(secondaryRules, KeywordMatchOptions(ignoreCase, ignoreWhitespace)),
                         anyIncludeWords = emptyList(),
                         excludeKeywords = excludeList,
                         enabledPlatforms = enabledPlatforms,

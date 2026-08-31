@@ -161,7 +161,9 @@ class MonitoringRepository(
                 matchMode = rule.matchMode,
                 mustIncludeWords = rule.mustIncludeWords,
                 anyIncludeWords = rule.anyIncludeWords,
-                excludeKeywords = rule.excludeKeywords
+                excludeKeywords = rule.excludeKeywords,
+                ignoreCase = SecondaryKeywordRules.matchOptions(rule.mustIncludeWords).ignoreCase,
+                ignoreWhitespace = SecondaryKeywordRules.matchOptions(rule.mustIncludeWords).ignoreWhitespace
             )
 
             if (!matchRes.isMatched) {

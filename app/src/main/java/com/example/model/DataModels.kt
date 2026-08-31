@@ -7,6 +7,11 @@ data class SecondaryKeywordRule(
     val operator: SecondaryKeywordOperator
 )
 
+data class KeywordMatchOptions(
+    val ignoreCase: Boolean = true,
+    val ignoreWhitespace: Boolean = false
+)
+
 /**
  * Secondary rules are stored in the existing Room string-list column to keep
  * existing monitors compatible. Old must words become AND; old any words become OR.
@@ -14,21 +19,37 @@ data class SecondaryKeywordRule(
 object SecondaryKeywordRules {
     private const val AND_PREFIX = "__AND__:"
     private const val OR_PREFIX = "__OR__:"
+    private const val OPTIONS_PREFIX = "__MATCH_OPTIONS__:"
 
     fun decode(mustWords: List<String>, anyWords: List<String>): List<SecondaryKeywordRule> =
         mustWords.mapNotNull { stored ->
             when {
+                stored.startsWith(OPTIONS_PREFIX) -> null
                 stored.startsWith(AND_PREFIX) -> SecondaryKeywordRule(stored.removePrefix(AND_PREFIX), SecondaryKeywordOperator.AND)
-                stored.startsWith(OR_PREFIX) -> SecondaryKeywordRule(stored.removePrefix(OR_PREFIX), SecondaryKeywordOperator.OR)
                 stored.isNotBlank() -> SecondaryKeywordRule(stored, SecondaryKeywordOperator.AND)
                 else -> null
             }
         } + anyWords.filter { it.isNotBlank() }.map { SecondaryKeywordRule(it, SecondaryKeywordOperator.OR) }
 
-    fun encode(rules: List<SecondaryKeywordRule>): List<String> = rules.mapNotNull { rule ->
+    fun matchOptions(mustWords: List<String>) = mustWords.firstOrNull { it.startsWith(OPTIONS_PREFIX) }
+        ?.removePrefix(OPTIONS_PREFIX)?.split(":")?.let { KeywordMatchOptions(it.getOrNull(0) == "1", it.getOrNull(1) == "1") }
+        ?: KeywordMatchOptions()
+
+    fun encode(rules: List<SecondaryKeywordRule>, options: KeywordMatchOptions): List<String> =
+        listOf("$OPTIONS_PREFIX${if (options.ignoreCase) 1 else 0}:${if (options.ignoreWhitespace) 1 else 0}") + rules.mapNotNull { rule ->
         rule.keyword.trim().takeIf { it.isNotBlank() }?.let { keyword ->
             (if (rule.operator == SecondaryKeywordOperator.AND) AND_PREFIX else OR_PREFIX) + keyword
         }
+    }
+
+    /** Every AND starts a required group; consecutive OR terms join the previous group. */
+    fun groups(rules: List<SecondaryKeywordRule>): List<List<String>> {
+        val groups = mutableListOf<MutableList<String>>()
+        rules.forEach { rule ->
+            if (rule.operator == SecondaryKeywordOperator.AND || groups.isEmpty()) groups += mutableListOf(rule.keyword)
+            else groups.last() += rule.keyword
+        }
+        return groups
     }
 }
 
