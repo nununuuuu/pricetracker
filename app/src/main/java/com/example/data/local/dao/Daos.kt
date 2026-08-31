@@ -57,6 +57,9 @@ interface ProductDao {
 
     @Query("SELECT COUNT(*) FROM products")
     fun getProductCount(): Flow<Int>
+
+    @Query("DELETE FROM products WHERE id IN (:ids)")
+    suspend fun deleteProductsByIds(ids: List<String>)
 }
 
 @Dao
@@ -75,6 +78,9 @@ interface PriceHistoryDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(records: List<PriceHistoryEntity>)
+
+    @Query("DELETE FROM price_history WHERE productId IN (:productIds)")
+    suspend fun deleteHistoryByProductIds(productIds: List<String>)
 }
 
 @Dao
@@ -108,6 +114,9 @@ interface AnomalyReportDao {
 
     @Query("DELETE FROM anomaly_reports WHERE id = :id")
     suspend fun deleteAnomalyById(id: Long)
+
+    @Query("DELETE FROM anomaly_reports WHERE productId IN (:productIds)")
+    suspend fun deleteAnomaliesByProductIds(productIds: List<String>)
 }
 
 @Dao

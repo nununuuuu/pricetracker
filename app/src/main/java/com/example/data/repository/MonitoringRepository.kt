@@ -6,6 +6,7 @@ import com.example.engine.*
 import com.example.model.*
 import com.example.platform.PlatformManager
 import com.example.platform.UrlParserHelper
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -15,6 +16,15 @@ class MonitoringRepository(
     private val database: AppDatabase,
     val platformManager: PlatformManager = PlatformManager()
 ) {
+    /** Removes only identifiers created by the old demo seeder, never real listings. */
+    suspend fun removeLegacyDemoData() = withContext(Dispatchers.IO) {
+        val ids = listOf("shopee_npw_001", "coupang_990p_001", "pchome_rtx5070_glitch")
+        database.withTransaction {
+            anomalyDao.deleteAnomaliesByProductIds(ids)
+            historyDao.deleteHistoryByProductIds(ids)
+            productDao.deleteProductsByIds(ids)
+        }
+    }
     private val monitorDao = database.monitorRuleDao()
     private val productDao = database.productDao()
     private val historyDao = database.priceHistoryDao()

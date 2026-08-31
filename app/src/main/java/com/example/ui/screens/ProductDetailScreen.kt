@@ -222,16 +222,7 @@ fun ProductDetailScreen(
                     // Buy Now Button
                     Button(
                         onClick = {
-                            val rawUrl = product.url
-                            val targetUrl = if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
-                                if (rawUrl.contains("/item/npw_") || rawUrl.contains("/item/990p_") || rawUrl.contains("/item/rtx5070_") || rawUrl.contains("/products/882190") || rawUrl.contains("/product/12345/")) {
-                                    product.platform.getSearchUrl(product.title)
-                                } else {
-                                    rawUrl
-                                }
-                            } else {
-                                product.platform.getSearchUrl(product.title)
-                            }
+                            val targetUrl = product.url.takeIf { it.isRealProductUrl() } ?: return@Button
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
                             try {
                                 context.startActivity(intent)
@@ -239,6 +230,7 @@ fun ProductDetailScreen(
                                 // Fallback
                             }
                         },
+                        enabled = product.url.isRealProductUrl(),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp),
@@ -570,4 +562,9 @@ fun ProductDetailScreen(
         }
     }
 }
+
+private fun String.isRealProductUrl(): Boolean =
+    (startsWith("https://") || startsWith("http://")) &&
+        !contains("/search", ignoreCase = true) &&
+        !contains("search?", ignoreCase = true)
 
