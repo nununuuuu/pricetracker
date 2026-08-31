@@ -367,9 +367,13 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
 
     fun runDiagnostics() {
         viewModelScope.launch {
-            showBannerMessage("正在診斷 4 大電商 API 與連線狀態...")
-            val results = repository.platformManager.runDiagnostics()
-            showBannerMessage("診斷完成：${results.size} 家電商連線均正常")
+            showBannerMessage("正在逐一診斷全部 ${PlatformType.entries.size} 個電商平台…")
+            repository.platformManager.runDiagnostics()
+            val statuses = repository.platformManager.platformStatuses.value.values
+            val online = statuses.count { it.isOnline }
+            val unavailable = statuses.count { !it.isEnabled }
+            val failed = statuses.size - online - unavailable
+            showBannerMessage("診斷完成：連線成功 $online、未實作 $unavailable、連線失敗 $failed")
         }
     }
 

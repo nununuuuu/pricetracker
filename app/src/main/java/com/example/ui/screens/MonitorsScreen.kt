@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.MonitorRule
+import com.example.model.SecondaryKeywordRules
 import com.example.ui.components.EmptyStateView
 import com.example.ui.components.PlatformBadge
 import com.example.ui.theme.*
@@ -327,28 +328,29 @@ fun MonitorItemCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Must include words chips
-            if (rule.mustIncludeWords.isNotEmpty()) {
+            // Ordered secondary keyword rules
+            val secondaryRules = SecondaryKeywordRules.decode(rule.mustIncludeWords, rule.anyIncludeWords)
+            if (secondaryRules.isNotEmpty()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "必須包含:",
+                        text = "次要規則:",
                         style = MaterialTheme.typography.labelSmall,
                         color = PrimaryBlue,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    rule.mustIncludeWords.forEach { word ->
+                    secondaryRules.forEach { rule ->
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(PrimaryBlueLight)
                                 .padding(horizontal = 5.dp, vertical = 1.5.dp)
                         ) {
-                            Text(text = word, fontSize = 9.5.sp, color = PrimaryBlue, fontWeight = FontWeight.Medium)
+                            Text(text = "${rule.keyword} ${rule.operator}", fontSize = 9.5.sp, color = PrimaryBlue, fontWeight = FontWeight.Medium)
                         }
                     }
                 }

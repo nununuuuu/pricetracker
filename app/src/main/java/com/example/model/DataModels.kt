@@ -1,5 +1,37 @@
 package com.example.model
 
+enum class SecondaryKeywordOperator { AND, OR }
+
+data class SecondaryKeywordRule(
+    val keyword: String,
+    val operator: SecondaryKeywordOperator
+)
+
+/**
+ * Secondary rules are stored in the existing Room string-list column to keep
+ * existing monitors compatible. Old must words become AND; old any words become OR.
+ */
+object SecondaryKeywordRules {
+    private const val AND_PREFIX = "__AND__:"
+    private const val OR_PREFIX = "__OR__:"
+
+    fun decode(mustWords: List<String>, anyWords: List<String>): List<SecondaryKeywordRule> =
+        mustWords.mapNotNull { stored ->
+            when {
+                stored.startsWith(AND_PREFIX) -> SecondaryKeywordRule(stored.removePrefix(AND_PREFIX), SecondaryKeywordOperator.AND)
+                stored.startsWith(OR_PREFIX) -> SecondaryKeywordRule(stored.removePrefix(OR_PREFIX), SecondaryKeywordOperator.OR)
+                stored.isNotBlank() -> SecondaryKeywordRule(stored, SecondaryKeywordOperator.AND)
+                else -> null
+            }
+        } + anyWords.filter { it.isNotBlank() }.map { SecondaryKeywordRule(it, SecondaryKeywordOperator.OR) }
+
+    fun encode(rules: List<SecondaryKeywordRule>): List<String> = rules.mapNotNull { rule ->
+        rule.keyword.trim().takeIf { it.isNotBlank() }?.let { keyword ->
+            (if (rule.operator == SecondaryKeywordOperator.AND) AND_PREFIX else OR_PREFIX) + keyword
+        }
+    }
+}
+
 data class MonitorRule(
     val id: Long = 0,
     val name: String,

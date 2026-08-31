@@ -1,6 +1,8 @@
 package com.example.engine
 
 import com.example.model.MatchMode
+import com.example.model.SecondaryKeywordOperator
+import com.example.model.SecondaryKeywordRules
 
 import java.util.Locale
 
@@ -56,10 +58,14 @@ object ProductMatcher {
             }
         }
 
-        // 2. Must include check
-        val missingMustWords = mustIncludeWords.filter { must ->
-            must.isNotBlank() && !lowerTitle.contains(must.lowercase(Locale.ROOT).trim())
-        }
+        // 2. Apply the secondary rules in saved order. AND rules narrow the
+        // current candidate set; OR rules preserve it when absent and add the
+        // matching branch when present. Thus A + B(OR) + C(AND) accepts ABC or AC.
+        val secondaryRules = SecondaryKeywordRules.decode(mustIncludeWords, anyIncludeWords)
+        val missingMustWords = secondaryRules
+            .filter { it.operator == SecondaryKeywordOperator.AND }
+            .map { it.keyword }
+            .filter { must -> !lowerTitle.contains(must.lowercase(Locale.ROOT).trim()) }
         if (missingMustWords.isNotEmpty()) {
             return MatchResult(
                 isMatched = false,
@@ -70,24 +76,7 @@ object ProductMatcher {
             )
         }
 
-        // 3. Any include check (if specified)
-        val validAnyWords = anyIncludeWords.filter { it.isNotBlank() }
-        if (validAnyWords.isNotEmpty()) {
-            val hasAny = validAnyWords.any { anyWord ->
-                lowerTitle.contains(anyWord.lowercase(Locale.ROOT).trim())
-            }
-            if (!hasAny) {
-                return MatchResult(
-                    isMatched = false,
-                    confidenceScore = 0.0,
-                    clusterId = "",
-                    normalizedTitle = normTitle,
-                    rejectionReason = "未包含任一指定關鍵字"
-                )
-            }
-        }
-
-        // 4. EXACT is deliberately strict after the same normalisation used for
+        // 3. EXACT is deliberately strict after the same normalisation used for
         // product titles; promotional text has already been removed above.
         val normalizedKeyword = normalizeTitle(searchKeyword)
         if (matchMode == MatchMode.EXACT) {
@@ -101,7 +90,7 @@ object ProductMatcher {
             )
         }
 
-        // 5. Calculate token overlap similarity and confidence
+        // 4. Calculate token overlap similarity and confidence
         val searchTokens = normalizeTitle(searchKeyword).split(" ").filter { it.length >= 2 }
         val titleTokens = normTitle.split(" ").filter { it.length >= 2 }.toSet()
 

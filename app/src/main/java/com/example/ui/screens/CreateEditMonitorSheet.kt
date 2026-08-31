@@ -38,13 +38,12 @@ fun CreateEditMonitorSheet(
     var searchKeyword by remember { mutableStateOf(initialRule.searchKeyword) }
     var matchMode by remember { mutableStateOf(initialRule.matchMode) }
 
-    // 次要關鍵字可切換為全部符合（AND）或任一符合（OR）。舊資料的
-    // mustIncludeWords 視為 AND，anyIncludeWords 視為 OR，以保持相容。
-    var secondaryUseAnd by remember { mutableStateOf(initialRule.anyIncludeWords.isEmpty()) }
-    var mustIncludeList by remember {
-        mutableStateOf(if (initialRule.anyIncludeWords.isNotEmpty()) initialRule.anyIncludeWords else initialRule.mustIncludeWords)
+    // 每個次要關鍵字各自帶有 AND / OR，並以加入順序套用。
+    var secondaryRules by remember {
+        mutableStateOf(SecondaryKeywordRules.decode(initialRule.mustIncludeWords, initialRule.anyIncludeWords))
     }
     var newMustWord by remember { mutableStateOf("") }
+    var newMustOperator by remember { mutableStateOf(SecondaryKeywordOperator.AND) }
 
     var excludeList by remember { mutableStateOf(initialRule.excludeKeywords) }
     var newExcludeWord by remember { mutableStateOf("") }
@@ -313,20 +312,20 @@ fun CreateEditMonitorSheet(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "次要關鍵字關係",
+                    text = "新一次要關鍵字的關係（每筆可獨立設定）",
                     fontSize = 10.5.sp,
                     color = SlateTextSecondary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
-                        selected = secondaryUseAnd,
-                        onClick = { secondaryUseAnd = true },
+                        selected = newMustOperator == SecondaryKeywordOperator.AND,
+                        onClick = { newMustOperator = SecondaryKeywordOperator.AND },
                         label = { Text("AND：全部符合", fontSize = 10.5.sp) }
                     )
                     FilterChip(
-                        selected = !secondaryUseAnd,
-                        onClick = { secondaryUseAnd = false },
+                        selected = newMustOperator == SecondaryKeywordOperator.OR,
+                        onClick = { newMustOperator = SecondaryKeywordOperator.OR },
                         label = { Text("OR：符合任一", fontSize = 10.5.sp) }
                     )
                 }
@@ -340,7 +339,7 @@ fun CreateEditMonitorSheet(
                     OutlinedTextField(
                         value = newMustWord,
                         onValueChange = { newMustWord = it },
-                        placeholder = { Text(if (secondaryUseAnd) "新增次要詞（全部符合）" else "新增次要詞（符合任一）", fontSize = 11.sp) },
+                        placeholder = { Text("新增次要關鍵字", fontSize = 11.sp) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
@@ -351,8 +350,8 @@ fun CreateEditMonitorSheet(
                     )
                     Button(
                         onClick = {
-                            if (newMustWord.isNotBlank() && !mustIncludeList.contains(newMustWord.trim())) {
-                                mustIncludeList = mustIncludeList + newMustWord.trim()
+                            if (newMustWord.isNotBlank() && secondaryRules.none { it.keyword == newMustWord.trim() }) {
+                                secondaryRules = secondaryRules + SecondaryKeywordRule(newMustWord.trim(), newMustOperator)
                                 newMustWord = ""
                             }
                         },
@@ -363,7 +362,7 @@ fun CreateEditMonitorSheet(
                     }
                 }
 
-                if (mustIncludeList.isNotEmpty()) {
+                if (secondaryRules.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier
@@ -371,11 +370,11 @@ fun CreateEditMonitorSheet(
                             .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        mustIncludeList.forEach { word ->
+                        secondaryRules.forEach { rule ->
                             InputChip(
                                 selected = true,
-                                onClick = { mustIncludeList = mustIncludeList.filter { it != word } },
-                                label = { Text(word, fontSize = 11.sp, color = PrimaryBlue) },
+                                onClick = { secondaryRules = secondaryRules.filter { it != rule } },
+                                label = { Text("${rule.keyword}（${rule.operator}）", fontSize = 11.sp, color = PrimaryBlue) },
                                 trailingIcon = { Icon(Icons.Filled.Close, contentDescription = "刪除", modifier = Modifier.size(12.dp), tint = PrimaryBlue) },
                                 colors = InputChipDefaults.inputChipColors(
                                     selectedContainerColor = PrimaryBlueLight
@@ -682,8 +681,8 @@ fun CreateEditMonitorSheet(
                     val finalRule = initialRule.copy(
                         name = if (name.isNotBlank()) name.trim() else resolvedSearchKeyword,
                         searchKeyword = resolvedSearchKeyword,
-                        mustIncludeWords = if (secondaryUseAnd) mustIncludeList else emptyList(),
-                        anyIncludeWords = if (secondaryUseAnd) emptyList() else mustIncludeList,
+                        mustIncludeWords = SecondaryKeywordRules.encode(secondaryRules),
+                        anyIncludeWords = emptyList(),
                         excludeKeywords = excludeList,
                         enabledPlatforms = enabledPlatforms,
                         maxFixedPrice = fixedPriceText.toDoubleOrNull(),
