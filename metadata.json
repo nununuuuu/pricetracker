@@ -1,0 +1,6 @@
+{
+  "name": "台灣電商異常低價監控",
+  "description": "支援 momo、PChome、Coupang、ETMall、Rakuten、Yahoo購物中心、Yahoo拍賣、Costco、全聯全電商、萬家福、博客來、露天市集、生活市集、松果購物 及 蝦皮購物 共 15 個平台的價格搜尋與比較，具備獨立排除字典、假低價過濾與即時推播。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
