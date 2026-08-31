@@ -32,7 +32,12 @@ class PChomeAdapter(
         val start = System.currentTimeMillis()
         return when (val result = searchProducts("手機", 1)) {
             is PlatformResult.Success -> PlatformResult.Success(System.currentTimeMillis() - start, System.currentTimeMillis() - start)
-            is PlatformResult.Error -> PlatformResult.Error(result.message, result.cause)
+            is PlatformResult.Error -> PlatformResult.Error(
+                message = result.message,
+                isTransient = result.isTransient,
+                statusCode = result.statusCode
+            )
+            is PlatformResult.RateLimited -> result
         }
     }
 
@@ -60,7 +65,10 @@ class PChomeAdapter(
                 PlatformResult.Success(products, System.currentTimeMillis() - start)
             }
         } catch (e: Exception) {
-            PlatformResult.Error("PChome 搜尋失敗: ${e.message ?: e.javaClass.simpleName}", e)
+            PlatformResult.Error(
+                message = "PChome 搜尋失敗: ${e.message ?: e.javaClass.simpleName}",
+                isTransient = true
+            )
         }
     }
 

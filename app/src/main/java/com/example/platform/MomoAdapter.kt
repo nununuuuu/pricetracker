@@ -40,7 +40,12 @@ class MomoAdapter(
                 System.currentTimeMillis() - start,
                 System.currentTimeMillis() - start
             )
-            is PlatformResult.Error -> PlatformResult.Error(result.message, result.cause)
+            is PlatformResult.Error -> PlatformResult.Error(
+                message = result.message,
+                isTransient = result.isTransient,
+                statusCode = result.statusCode
+            )
+            is PlatformResult.RateLimited -> result
         }
     }
 
@@ -140,7 +145,10 @@ class MomoAdapter(
                 PlatformResult.Success(products, System.currentTimeMillis() - start)
             }
         } catch (e: Exception) {
-            PlatformResult.Error("momo 搜尋失敗: ${e.message ?: e.javaClass.simpleName}", e)
+            PlatformResult.Error(
+                message = "momo 搜尋失敗: ${e.message ?: e.javaClass.simpleName}",
+                isTransient = true
+            )
         }
     }
 
