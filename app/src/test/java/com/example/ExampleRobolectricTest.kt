@@ -10,12 +10,12 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
-class ExampleRobolectricTest {
+class AppResourcesTest {
 
   @Test
-  fun `read string from context`() {
+  fun `app name is available from context`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val appName = context.getString(R.string.app_name)
-    assertEquals("My Application", appName)
+    assertEquals("撿漏雷達", appName)
   }
 }

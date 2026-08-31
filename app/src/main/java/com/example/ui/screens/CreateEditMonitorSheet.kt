@@ -232,7 +232,7 @@ fun CreateEditMonitorSheet(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    PlatformBadge(platform = parsedUrlInfo.platform)
+                                    PlatformBadge(platform = requireNotNull(parsedUrlInfo.platform))
                                     Text(
                                         text = "已自動識別所屬平台",
                                         fontSize = 11.sp,
