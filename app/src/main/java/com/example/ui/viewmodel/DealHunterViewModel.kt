@@ -174,12 +174,6 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun toggleStar(dealId: Long, isStarred: Boolean) {
-        viewModelScope.launch {
-            repository.toggleStarAnomaly(dealId, isStarred)
-        }
-    }
-
     fun deleteMonitor(id: Long) {
         viewModelScope.launch {
             repository.deleteMonitor(id)
@@ -532,7 +526,6 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
             DealFilterLevel.EXTREME_ONLY -> result.filter { it.dealScore >= 90 }
             DealFilterLevel.STRONG_ONLY -> result.filter { it.dealScore in 75..89 }
             DealFilterLevel.GOOD_ONLY -> result.filter { it.dealScore in 60..74 }
-            DealFilterLevel.STARRED -> result.filter { it.isStarred }
         }
 
         // 3. Sorting

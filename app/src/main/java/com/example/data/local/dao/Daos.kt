@@ -112,9 +112,6 @@ interface AnomalyReportDao {
     @Update
     suspend fun updateAnomaly(report: AnomalyReportEntity)
 
-    @Query("UPDATE anomaly_reports SET isStarred = :isStarred WHERE id = :id")
-    suspend fun setStarred(id: Long, isStarred: Boolean)
-
     @Query("UPDATE anomaly_reports SET isNotified = 1, notifiedAt = :notifiedAt, lastNotifiedPrice = :price, lastNotifiedDealScore = :dealScore WHERE id = :id")
     suspend fun markNotified(id: Long, notifiedAt: Long, price: Double, dealScore: Int)
 

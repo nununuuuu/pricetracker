@@ -133,10 +133,6 @@ class MonitoringRepository(
         monitorDao.deleteRuleById(id)
     }
 
-    suspend fun toggleStarAnomaly(id: Long, isStarred: Boolean) = withContext(Dispatchers.IO) {
-        anomalyDao.setStarred(id, isStarred)
-    }
-
     suspend fun deleteAnomaly(id: Long) = withContext(Dispatchers.IO) {
         anomalyDao.deleteAnomalyById(id)
     }
