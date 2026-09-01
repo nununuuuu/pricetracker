@@ -17,16 +17,34 @@ class MonitoringRepository(
     private val database: AppDatabase,
     val platformManager: PlatformManager = PlatformManager()
 ) {
-    /** Removes only identifiers created by the old demo seeder, never real listings. */
+    /** Removes every identifier emitted by the retired in-app sample generator. */
     suspend fun removeLegacyDemoData() = withContext(Dispatchers.IO) {
-        val ids = listOf(
-            "shopee_npw_001", "coupang_990p_001", "pchome_rtx5070_glitch",
+        val legacyOriginalIds = listOf(
+            "npw_001", "npw_acc_001", "npw_002",
+            "990p_001", "990p_heatsink", "990p_002",
+            "rtx5070_001", "rtx5070_glitch",
+            "gen_001", "gen_deal", "gen_acc",
             "costco_airpods_001", "momo_xm5_001", "books_kindle_001"
         )
         database.withTransaction {
-            anomalyDao.deleteAnomaliesByProductIds(ids)
-            historyDao.deleteHistoryByProductIds(ids)
-            productDao.deleteProductsByIds(ids)
+            val ids = productDao.getProductIdsByOriginalPlatformIds(legacyOriginalIds)
+            if (ids.isNotEmpty()) {
+                anomalyDao.deleteAnomaliesByProductIds(ids)
+                historyDao.deleteHistoryByProductIds(ids)
+                productDao.deleteProductsByIds(ids)
+            }
+        }
+    }
+
+    /**
+     * Discards cached scan output produced before strict product-identity
+     * matching existed. Monitor rules and user settings are intentionally kept.
+     */
+    suspend fun clearIncompatibleScanCache() = withContext(Dispatchers.IO) {
+        database.withTransaction {
+            anomalyDao.deleteAllAnomalies()
+            historyDao.deleteAllHistory()
+            productDao.deleteAllProducts()
         }
     }
     private val monitorDao = database.monitorRuleDao()

@@ -27,10 +27,15 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
     val uiState: StateFlow<DealHunterUiState> = _uiState.asStateFlow()
 
     init {
-        // Remove the previous release's fabricated demo data. Live scans are the
-        // only source allowed to populate products and anomalies.
+        // Old scans used broad keyword clusters and could compare different
+        // variants as though they were one item.  Clear that cache once while
+        // preserving the user's monitor rules and preferences.
         viewModelScope.launch {
             repository.removeLegacyDemoData()
+            if (!prefs.getBoolean("strict_product_identity_v2", false)) {
+                repository.clearIncompatibleScanCache()
+                prefs.edit().putBoolean("strict_product_identity_v2", true).apply()
+            }
         }
 
         // Observe monitors

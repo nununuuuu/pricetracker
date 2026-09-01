@@ -60,6 +60,12 @@ interface ProductDao {
 
     @Query("DELETE FROM products WHERE id IN (:ids)")
     suspend fun deleteProductsByIds(ids: List<String>)
+
+    @Query("SELECT id FROM products WHERE originalPlatformId IN (:originalIds)")
+    suspend fun getProductIdsByOriginalPlatformIds(originalIds: List<String>): List<String>
+
+    @Query("DELETE FROM products")
+    suspend fun deleteAllProducts()
 }
 
 @Dao
@@ -81,6 +87,9 @@ interface PriceHistoryDao {
 
     @Query("DELETE FROM price_history WHERE productId IN (:productIds)")
     suspend fun deleteHistoryByProductIds(productIds: List<String>)
+
+    @Query("DELETE FROM price_history")
+    suspend fun deleteAllHistory()
 }
 
 @Dao
@@ -117,6 +126,9 @@ interface AnomalyReportDao {
 
     @Query("DELETE FROM anomaly_reports WHERE productId IN (:productIds)")
     suspend fun deleteAnomaliesByProductIds(productIds: List<String>)
+
+    @Query("DELETE FROM anomaly_reports")
+    suspend fun deleteAllAnomalies()
 }
 
 @Dao
