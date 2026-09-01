@@ -17,16 +17,16 @@ class PlatformManager(
         PlatformType.PCHOME to PChomeAdapter(),
         PlatformType.COUPANG to CoupangAdapter(),
         PlatformType.ETMALL to EtmallAdapter(),
-        PlatformType.RAKUTEN to UnsupportedPlatformAdapter(PlatformType.RAKUTEN),
+        PlatformType.RAKUTEN to KotlinMcpPlatformAdapter(PlatformType.RAKUTEN, tw.pricecompare.RakutenPlatform()),
         PlatformType.YAHOO_CENTER to YahooCenterAdapter(),
-        PlatformType.YAHOO_AUCTION to UnsupportedPlatformAdapter(PlatformType.YAHOO_AUCTION),
-        PlatformType.COSTCO to UnsupportedPlatformAdapter(PlatformType.COSTCO),
-        PlatformType.PXGO to UnsupportedPlatformAdapter(PlatformType.PXGO),
-        PlatformType.CARREFOUR to UnsupportedPlatformAdapter(PlatformType.CARREFOUR, "實驗性平台，尚未完成真實資料串接"),
-        PlatformType.BOOKS to UnsupportedPlatformAdapter(PlatformType.BOOKS),
-        PlatformType.RUTEN to UnsupportedPlatformAdapter(PlatformType.RUTEN),
-        PlatformType.BUY123 to UnsupportedPlatformAdapter(PlatformType.BUY123),
-        PlatformType.PINECONE to UnsupportedPlatformAdapter(PlatformType.PINECONE)
+        PlatformType.YAHOO_AUCTION to KotlinMcpPlatformAdapter(PlatformType.YAHOO_AUCTION, tw.pricecompare.YahooAuctionPlatform()),
+        PlatformType.COSTCO to KotlinMcpPlatformAdapter(PlatformType.COSTCO, tw.pricecompare.CostcoPlatform()),
+        PlatformType.PXGO to KotlinMcpPlatformAdapter(PlatformType.PXGO, tw.pricecompare.PxboxPlatform()),
+        PlatformType.CARREFOUR to KotlinMcpPlatformAdapter(PlatformType.CARREFOUR, tw.pricecompare.UniProsperityPlatform()),
+        PlatformType.BOOKS to KotlinMcpPlatformAdapter(PlatformType.BOOKS, tw.pricecompare.BooksPlatform()),
+        PlatformType.RUTEN to KotlinMcpPlatformAdapter(PlatformType.RUTEN, tw.pricecompare.RutenPlatform()),
+        PlatformType.BUY123 to KotlinMcpPlatformAdapter(PlatformType.BUY123, tw.pricecompare.Buy123Platform()),
+        PlatformType.PINECONE to KotlinMcpPlatformAdapter(PlatformType.PINECONE, tw.pricecompare.PineconePlatform())
     )
 ) {
     private val _platformStatuses = MutableStateFlow<Map<PlatformType, PlatformStatus>>(

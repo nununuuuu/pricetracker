@@ -25,3 +25,5 @@ dependencyResolutionManagement {
 rootProject.name = "DealRadar"
 
 include(":app")
+include(":price-compare")
+project(":price-compare").projectDir = file("price-compare")

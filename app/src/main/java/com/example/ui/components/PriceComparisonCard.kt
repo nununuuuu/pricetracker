@@ -36,7 +36,6 @@ import kotlin.math.roundToInt
 fun PriceComparisonCard(
     report: AnomalyReport,
     onClick: () -> Unit,
-    onStarClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -249,18 +248,6 @@ fun PriceComparisonCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = onStarClick,
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (report.isStarred) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                            contentDescription = "收藏",
-                            tint = if (report.isStarred) AnomalyClearanceOrange else SlateTextMuted,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
                     OutlinedButton(
                         onClick = { isExpanded = !isExpanded },
                         modifier = Modifier
