@@ -281,6 +281,22 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
                 universalExclusions = _uiState.value.universalDictionary
             )
 
+            // Room emits asynchronously. Publish the freshly inserted reports now so
+            // the Deals tab updates immediately instead of waiting for another filter tap.
+            _uiState.update { current ->
+                val allDeals = (newAnomalies + current.allDeals).distinctBy { it.id }
+                current.copy(
+                    allDeals = allDeals,
+                    filteredDeals = applyFilters(
+                        deals = allDeals,
+                        level = current.selectedFilterLevel,
+                        sort = current.selectedSortOption,
+                        query = current.searchQuery,
+                        platformFilter = current.selectedPlatformFilter
+                    )
+                )
+            }
+
             _uiState.update {
                 it.copy(
                     scannerStatus = ScannerStatus(
@@ -374,6 +390,22 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
             val unavailable = statuses.count { !it.isEnabled }
             val failed = statuses.size - online - unavailable
             showBannerMessage("診斷完成：連線成功 $online、未實作 $unavailable、連線失敗 $failed")
+        }
+    }
+
+    fun triggerMarketDiscovery() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(scannerStatus = ScannerStatus(true, "正在探索市場分類商品…", 0.2f)) }
+            val anomalies = repository.executeMarketDiscovery(_uiState.value.universalDictionary)
+            _uiState.update { current ->
+                val allDeals = (anomalies + current.allDeals).distinctBy { it.id }
+                current.copy(
+                    scannerStatus = ScannerStatus(false, "市場探索完成", 1f, "發現 ${anomalies.size} 筆市場異常"),
+                    allDeals = allDeals,
+                    filteredDeals = applyFilters(allDeals, current.selectedFilterLevel, current.selectedSortOption, current.searchQuery, current.selectedPlatformFilter)
+                )
+            }
+            showBannerMessage("市場探索完成：發現 ${anomalies.size} 筆異常價格")
         }
     }
 

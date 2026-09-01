@@ -138,6 +138,27 @@ class MonitoringRepository(
     }
 
     /**
+     * Discovers candidates beyond personal monitors. Coverage is intentionally
+     * limited to rotating public category queries, never advertised as a full-site crawl.
+     */
+    suspend fun executeMarketDiscovery(universalExclusions: List<String> = emptyList()): List<AnomalyReport> = withContext(Dispatchers.IO) {
+        val discoveryQueries = listOf("手機", "筆電", "顯示卡", "耳機", "家電", "遊戲機")
+        discoveryQueries.flatMap { query ->
+            executeScanForMonitor(
+                MonitorRule(
+                    name = "市場探索：$query",
+                    searchKeyword = query,
+                    enabledPlatforms = PlatformType.entries,
+                    thresholdMode = PriceThresholdMode.PERCENTAGE,
+                    discountThresholdPercent = 25.0,
+                    minDealScore = 75
+                ),
+                universalExclusions
+            )
+        }
+    }
+
+    /**
      * Scans for a single monitor across configured platforms.
      * Prioritizes actual price anomaly detection (below historical low or below market reference).
      */
@@ -257,7 +278,7 @@ class MonitoringRepository(
         }
 
         // Update rule stats
-        monitorDao.updateScanStats(rule.id, System.currentTimeMillis(), foundCount, anomalyCount)
+        if (rule.id > 0) monitorDao.updateScanStats(rule.id, System.currentTimeMillis(), foundCount, anomalyCount)
         discoveredAnomalies
     }
 

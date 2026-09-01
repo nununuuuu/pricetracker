@@ -75,6 +75,18 @@ fun DealsRadarScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        OutlinedButton(
+            onClick = { viewModel.triggerMarketDiscovery() },
+            modifier = Modifier.fillMaxWidth().height(36.dp),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Icon(Icons.Filled.Explore, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("探索市場異常（熱門分類）", fontSize = 11.sp)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // Filter Pills & Sort Button Row
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -209,8 +221,7 @@ fun DealsRadarScreen(
                             if (prod != null) {
                                 viewModel.openProductDetail(prod, report)
                             }
-                        },
-                        onStarClick = { viewModel.toggleStar(report.id, !report.isStarred) }
+                        }
                     )
                 }
             }

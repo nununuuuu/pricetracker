@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="tw.pricecompare.PlatformPipelineTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-08-31T21:35:32.358Z" hostname="DESKTOP-81POLM7" time="0.089">
+  <properties/>
+  <testcase name="pipeline keeps the cheapest duplicate and removes invalid variant ranges()" classname="tw.pricecompare.PlatformPipelineTest" time="0.064"/>
+  <testcase name="groups are AND while terms in each group are OR()" classname="tw.pricecompare.PlatformPipelineTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
