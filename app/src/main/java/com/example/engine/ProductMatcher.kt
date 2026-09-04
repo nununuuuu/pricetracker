@@ -50,6 +50,12 @@ object ProductMatcher {
         }
         val lowerTitle = comparable(productTitle)
         val normTitle = normalizeTitle(productTitle, ignoreCase).let { if (ignoreWhitespace) it.replace(" ", "") else it }
+        val comparisonTitle = if (ignoreWhitespace) normTitle else lowerTitle
+        val normalizedSearch = normalizeTitle(searchKeyword, ignoreCase)
+        val normalizedSearchTokens = normalizedSearch
+            .split(" ")
+            .filter { it.length >= 2 }
+        val modelTokens = normalizedSearchTokens.filter(::isModelIdentifier).distinct()
 
         // 1. Exclude keywords check
         excludeKeywords.forEach { excl ->
@@ -93,13 +99,42 @@ object ProductMatcher {
             )
         }
 
+        // A broad category or a single chipset/model-family is useful for
+        // browsing, but it is not enough to claim two listings are the same
+        // product.  Reject it from price comparison rather than calculating a
+        // misleading "market lowest" price from incompatible variants.
+        if (normalizedSearchTokens.size < 2) {
+            return MatchResult(
+                isMatched = false,
+                confidenceScore = 0.0,
+                clusterId = "",
+                normalizedTitle = normTitle,
+                rejectionReason = "比價關鍵字不足以識別同一型號；請至少輸入兩組型號／規格代碼"
+            )
+        }
+
+        val missingModelTokens = modelTokens.filterNot { comparisonTitle.contains(it) }
+        if (missingModelTokens.isNotEmpty()) {
+            return MatchResult(
+                isMatched = false,
+                confidenceScore = 0.0,
+                clusterId = "",
+                normalizedTitle = normTitle,
+                rejectionReason = "商品未完整符合型號／規格：${missingModelTokens.joinToString()}"
+            )
+        }
+
         // 4. Calculate token overlap similarity and confidence
-        val searchTokens = normalizeTitle(searchKeyword, ignoreCase).let { if (ignoreWhitespace) it.replace(" ", "") else it }.split(" ").filter { it.length >= 2 }
+        val searchTokens = if (ignoreWhitespace) {
+            listOf(normalizedSearch.replace(" ", "")).filter(String::isNotBlank)
+        } else {
+            normalizedSearchTokens
+        }
         val titleTokens = normTitle.split(" ").filter { it.length >= 2 }.toSet()
 
         var matchedTokensCount = 0
         searchTokens.forEach { token ->
-            if (titleTokens.contains(token) || lowerTitle.contains(token)) {
+            if (titleTokens.contains(token) || comparisonTitle.contains(token)) {
                 matchedTokensCount++
             }
         }
@@ -113,16 +148,27 @@ object ProductMatcher {
         // Confidence calculation (0.6 ~ 0.98)
         val confidence = (0.5 + tokenCoverage * 0.45).coerceIn(0.1, 0.98)
 
-        // Cluster ID generation based on essential alphanumeric tokens
-        val clusterTokens = searchTokens.sorted().joinToString("_")
+        // The full, strictly matched query signature identifies the comparison
+        // cluster.  A product that only shares a category or model family was
+        // rejected above and can never join this cluster.
+        val clusterTokens = normalizedSearchTokens.sorted().joinToString("_")
         val clusterId = if (clusterTokens.isNotBlank()) "cluster_$clusterTokens" else "cluster_default"
 
         return MatchResult(
-            isMatched = tokenCoverage >= 0.6,
+            isMatched = tokenCoverage >= 1.0,
             confidenceScore = confidence,
             clusterId = clusterId,
             normalizedTitle = normTitle,
-            rejectionReason = if (tokenCoverage < 0.6) "關鍵字覆蓋率不足 (${(tokenCoverage * 100).toInt()}%)" else null
+            rejectionReason = if (tokenCoverage < 1.0) "商品未完整符合搜尋關鍵字 (${(tokenCoverage * 100).toInt()}%)" else null
         )
+    }
+
+    /** A model identifier contains letters and numbers, or is a long numeric SKU. */
+    private fun isModelIdentifier(token: String): Boolean {
+        val compact = token.replace(Regex("[^a-zA-Z0-9]"), "")
+        val hasLetter = compact.any(Char::isLetter)
+        val hasDigit = compact.any(Char::isDigit)
+        return (compact.length >= 3 && hasLetter && hasDigit) ||
+            (compact.length >= 4 && compact.all(Char::isDigit))
     }
 }

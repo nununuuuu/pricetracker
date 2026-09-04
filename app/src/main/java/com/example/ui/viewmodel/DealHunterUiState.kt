@@ -22,8 +22,7 @@ enum class DealFilterLevel(val label: String) {
     ALL("全部特惠"),
     EXTREME_ONLY("🚨 極端異常 (90+)"),
     STRONG_ONLY("🔥 強烈低價 (75+)"),
-    GOOD_ONLY("🟡 好價 (60+)"),
-    STARRED("⭐ 我的收藏")
+    GOOD_ONLY("🟡 好價 (60+)")
 }
 
 enum class ChartTimeRange(val label: String, val days: Int) {

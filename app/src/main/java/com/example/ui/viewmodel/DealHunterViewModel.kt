@@ -27,10 +27,15 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
     val uiState: StateFlow<DealHunterUiState> = _uiState.asStateFlow()
 
     init {
-        // Remove the previous release's fabricated demo data. Live scans are the
-        // only source allowed to populate products and anomalies.
+        // Old scans used broad keyword clusters and could compare different
+        // variants as though they were one item.  Clear that cache once while
+        // preserving the user's monitor rules and preferences.
         viewModelScope.launch {
             repository.removeLegacyDemoData()
+            if (!prefs.getBoolean("strict_product_identity_v2", false)) {
+                repository.clearIncompatibleScanCache()
+                prefs.edit().putBoolean("strict_product_identity_v2", true).apply()
+            }
         }
 
         // Observe monitors
@@ -166,12 +171,6 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             repository.toggleMonitor(id, isEnabled)
             showBannerMessage(if (isEnabled) "已啟用監控" else "已暫停監控")
-        }
-    }
-
-    fun toggleStar(dealId: Long, isStarred: Boolean) {
-        viewModelScope.launch {
-            repository.toggleStarAnomaly(dealId, isStarred)
         }
     }
 
@@ -527,7 +526,6 @@ class DealHunterViewModel(application: Application) : AndroidViewModel(applicati
             DealFilterLevel.EXTREME_ONLY -> result.filter { it.dealScore >= 90 }
             DealFilterLevel.STRONG_ONLY -> result.filter { it.dealScore in 75..89 }
             DealFilterLevel.GOOD_ONLY -> result.filter { it.dealScore in 60..74 }
-            DealFilterLevel.STARRED -> result.filter { it.isStarred }
         }
 
         // 3. Sorting
